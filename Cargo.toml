@@ -1,0 +1,16 @@
+[package]
+name = "obs-frontend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+axum = { version = "0.8.9", features = ["ws", "multipart"] }
+futures-util = "0.3.32"
+obws = "0.15.0"
+reqwest = { version = "0.13.4", features = ["json", "multipart"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+time = "0.3.49"
+tokio = { version = "1.52.3", features = ["full"] }
+tower-http = { version = "0.7.0", features = ["fs"] }

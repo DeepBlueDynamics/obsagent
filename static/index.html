@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Agentic Control</title>
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar: OBS Dashboard -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i data-lucide="tv"></i>
+                    <span>OBS Agentic</span>
+                </div>
+                <div class="connection-status" id="connection-status">
+                    <span class="status-indicator offline"></span>
+                    <span class="status-text">Disconnected</span>
+                </div>
+            </div>
+
+            <!-- OBS Controls Dashboard -->
+            <div class="dashboard-section">
+                <h3>System Status</h3>
+                <div class="status-grid">
+                    <div class="status-card" id="status-streaming">
+                        <i data-lucide="radio"></i>
+                        <div class="card-info">
+                            <span class="label">Streaming</span>
+                            <span class="value" id="streaming-value">OFFLINE</span>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-recording">
+                        <i data-lucide="video"></i>
+                        <div class="card-info">
+                            <span class="label">Recording</span>
+                            <span class="value" id="recording-value">OFFLINE</span>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-virtualcam">
+                        <i data-lucide="aperture"></i>
+                        <div class="card-info">
+                            <span class="label">Virtual Cam</span>
+                            <span class="value" id="virtualcam-value">OFFLINE</span>
+                        </div>
+                    </div>
+                    <div class="status-card" id="status-resolution">
+                        <i data-lucide="monitor"></i>
+                        <div class="card-info">
+                            <span class="label">Canvas Size</span>
+                            <span class="value" id="resolution-value">0x0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-section">
+                <h3>Active Scene</h3>
+                <div class="active-scene-banner">
+                    <i data-lucide="layers"></i>
+                    <span id="current-scene-name">None</span>
+                </div>
+            </div>
+
+             <div class="dashboard-section window-control-section">
+                <h3>Window Control & Hotwire</h3>
+                <div class="window-control-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                    <div class="dropdown-container" style="display: flex; gap: 8px;">
+                        <select id="window-select" class="select-field" style="flex: 1; font-size: 0.8rem; padding: 6px 10px; width: 100%; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                            <option value="">Select running window...</option>
+                        </select>
+                        <button class="btn btn-secondary" id="btn-scan-windows" style="padding: 6px 10px;" title="Scan running windows">
+                            <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="preset-buttons" style="display: flex; gap: 6px; justify-content: space-between; flex-wrap: wrap;">
+                        <button class="btn btn-secondary size-preset-btn" id="btn-preset-canvas" data-width="2560" data-height="1440" style="flex: 1; min-width: 60px; padding: 4px 6px; font-size: 0.75rem; justify-content: center;">Canvas</button>
+                        <button class="btn btn-secondary size-preset-btn" data-width="1920" data-height="1080" style="flex: 1; min-width: 60px; padding: 4px 6px; font-size: 0.75rem; justify-content: center;">1080p</button>
+                        <button class="btn btn-secondary size-preset-btn" data-width="1280" data-height="720" style="flex: 1; min-width: 60px; padding: 4px 6px; font-size: 0.75rem; justify-content: center;">720p</button>
+                        <button class="btn btn-secondary size-preset-btn" data-width="854" data-height="480" style="flex: 1; min-width: 60px; padding: 4px 6px; font-size: 0.75rem; justify-content: center;">480p</button>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); min-width: 45px;">Size:</span>
+                        <input type="number" id="window-w" value="2560" style="width: 60px; background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; padding: 4px; font-size: 0.75rem; text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">x</span>
+                        <input type="number" id="window-h" value="1440" style="width: 60px; background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; padding: 4px; font-size: 0.75rem; text-align: center;">
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); min-width: 45px;">Pos:</span>
+                        <input type="number" id="window-x" value="0" style="width: 60px; background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; padding: 4px; font-size: 0.75rem; text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">,</span>
+                        <input type="number" id="window-y" value="0" style="width: 60px; background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; padding: 4px; font-size: 0.75rem; text-align: center;">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 4px 0;">
+
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">Bind to OBS Window Capture:</span>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="window-obs-source" value="Window Capture" placeholder="Source Name..." style="flex: 1; background: var(--bg-panel); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; padding: 6px; font-size: 0.75rem;">
+                            <button class="btn btn-primary" id="btn-hotwire-window" style="padding: 6px 12px; font-size: 0.75rem;" title="Resize and capture in OBS">
+                                <i data-lucide="zap" style="width: 14px; height: 14px;"></i> Hotwire
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-section scene-list-section">
+                <h3>Quick Switch Scenes</h3>
+                <div class="scene-grid" id="scene-grid">
+                    <!-- Dynamic scenes list -->
+                    <div class="loading-text">Connecting to OBS...</div>
+                </div>
+            </div>
+
+            <div class="dashboard-section audio-mixer-section">
+                <h3>Audio Mixer</h3>
+                <div class="audio-mixer" id="audio-mixer">
+                    <!-- Dynamic audio levels -->
+                    <div class="loading-text">Connecting to OBS...</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-container">
+            <header class="chat-header">
+                <div class="header-title">
+                    <h2>Agentic Controller</h2>
+                    <p>Natural language control for OBS Studio</p>
+                </div>
+                <div class="header-actions">
+                    <select id="model-select" class="select-field">
+                        <option value="claude">Claude 3.5 Sonnet</option>
+                        <option value="openai">OpenAI GPT-4o</option>
+                    </select>
+                    <button class="btn btn-secondary" id="btn-reconnect-obs">
+                        <i data-lucide="refresh-cw"></i> Reconnect OBS
+                    </button>
+                    <button class="btn btn-danger" id="btn-clear-history" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);">
+                        <i data-lucide="trash-2"></i> Clear History
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Messages Log -->
+            <div class="chat-messages" id="chat-messages">
+                <div class="message system-message">
+                    <div class="message-content">
+                        <p>Welcome! I'm your OBS AI Assistant. Ask me to change scenes, toggle source visibility, mute audio, or control recording and streaming. E.g. "Switch to BRB scene and mute the mic."</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggestion Chips -->
+            <div class="suggestion-chips">
+                <button class="chip" data-prompt="What scenes do I have?">What scenes do I have?</button>
+                <button class="chip" data-prompt="Switch to 'Be Right Back' scene">Switch to 'Be Right Back'</button>
+                <button class="chip" data-prompt="Mute the Mic and start recording">Mute Mic & Start Recording</button>
+                <button class="chip" data-prompt="Check stream and recording status">Check Status</button>
+            </div>
+
+            <!-- Input Bar -->
+            <footer class="chat-input-area">
+                <form id="chat-form" class="chat-form">
+                    <button type="button" class="btn-voice" id="btn-voice" title="Toggle Real-Time Voice Transcription">
+                        <i data-lucide="mic-off" id="voice-icon"></i>
+                    </button>
+                    <input type="text" id="chat-input" placeholder="Type a command to control OBS..." autocomplete="off">
+                    <button type="submit" class="btn btn-primary" id="btn-send">
+                        <span>Send</span>
+                        <i data-lucide="send"></i>
+                    </button>
+                </form>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Lucide Icons initialization -->
+    <script>
+        lucide.createIcons();
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

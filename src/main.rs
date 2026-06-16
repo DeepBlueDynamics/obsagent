@@ -1189,10 +1189,16 @@ async fn run_agent_loop(
              Follow these rules:\n\
              1. Analyze the request and check the current OBS status.\n\
              2. Call tools to modify OBS state if needed (e.g., switch scene, mute, adjust volume, start/stop recording, list/set transitions).\n\
-             3. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
-             4. If a tool fails, report it and try another way or explain the failure.\n\
-             5. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
-             6. Keep your final response concise and directly answer the user.",
+             3. **Hotwiring & Window Capture (Docker/Terminals/etc.)**:\n\
+                - If the user asks to capture, show, resize, or bind a window (such as a Docker terminal, browser, or any other app),\n\
+                  you must first call `list_system_windows` to find its title/process name.\n\
+                  - Once found, call `resize_and_focus_window` with the target title and dimensions (e.g., matching the canvas resolution like 2560x1440) to focus and resize it.\n\
+                  - This returns an `obs_identifier` (e.g. 'Title:ClassName:ProcessName.exe').\n\
+                  - Then, call `set_obs_window_capture` to create or bind that window to a Window Capture source in the desired scene.\n\
+             4. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
+             5. If a tool fails, report it and try another way or explain the failure.\n\
+             6. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
+             7. Keep your final response concise and directly answer the user.",
             current_state_str
         );
 
@@ -1825,10 +1831,16 @@ async fn run_agent_loop_openai(
              Follow these rules:\n\
              1. Analyze the request and check the current OBS status.\n\
              2. Call tools to modify OBS state if needed (e.g., switch scene, mute, adjust volume, start/stop recording, list/set transitions).\n\
-             3. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
-             4. If a tool fails, report it and try another way or explain the failure.\n\
-             5. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
-             6. Keep your final response concise and directly answer the user.",
+             3. **Hotwiring & Window Capture (Docker/Terminals/etc.)**:\n\
+                - If the user asks to capture, show, resize, or bind a window (such as a Docker terminal, browser, or any other app),\n\
+                  you must first call `list_system_windows` to find its title/process name.\n\
+                  - Once found, call `resize_and_focus_window` with the target title and dimensions (e.g., matching the canvas resolution like 2560x1440) to focus and resize it.\n\
+                  - This returns an `obs_identifier` (e.g. 'Title:ClassName:ProcessName.exe').\n\
+                  - Then, call `set_obs_window_capture` to create or bind that window to a Window Capture source in the desired scene.\n\
+             4. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
+             5. If a tool fails, report it and try another way or explain the failure.\n\
+             6. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
+             7. Keep your final response concise and directly answer the user.",
             current_state_str
         );
 

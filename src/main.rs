@@ -796,8 +796,49 @@ pub fn resize_and_locate_window(
                 public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
             }}
 "@
-            $query = $env:HOTWIRE_WINDOW_QUERY
-            $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and ($_.MainWindowTitle.ToLower().Contains($query.ToLower()) -or $_.ProcessName.ToLower() -eq $query.ToLower()) }} | Select-Object -First 1
+            $query = $env:HOTWIRE_WINDOW_QUERY.Trim()
+            $proc = $null
+
+            # 1. Exact match on MainWindowTitle
+            if (-not $proc) {{
+                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $_.MainWindowTitle.Equals($query, [System.StringComparison]::OrdinalIgnoreCase) }} | Select-Object -First 1
+            }}
+
+            # 2. Substring match (window title contains query)
+            if (-not $proc) {{
+                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $_.MainWindowTitle.ToLower().Contains($query.ToLower()) }} | Select-Object -First 1
+            }}
+
+            # 3. Reverse substring match (query contains window title)
+            if (-not $proc) {{
+                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $query.ToLower().Contains($_.MainWindowTitle.ToLower()) }} | Select-Object -First 1
+            }}
+
+            # 4. If query contains a separator like " - ", split it and match process + title
+            if (-not $proc -and ($query -match " - ")) {{
+                $parts = $query -split " - ", 2
+                $left = $parts[0].Trim()
+                $right = $parts[1].Trim()
+                
+                # Extract process name from path on left (handling backslashes or slashes)
+                $leftName = $left
+                if ($left -match '[\\/]([^\\/]+)$') {{
+                    $leftName = $Matches[1]
+                }}
+                $leftName = $leftName -replace '\.exe$', ''
+                
+                $proc = Get-Process | Where-Object {{ 
+                    $_.MainWindowTitle -and 
+                    ($_.ProcessName.Equals($leftName, [System.StringComparison]::OrdinalIgnoreCase) -or $_.ProcessName.Equals($left, [System.StringComparison]::OrdinalIgnoreCase)) -and
+                    $_.MainWindowTitle.ToLower().Contains($right.ToLower())
+                }} | Select-Object -First 1
+            }}
+
+            # 5. Match by process name exactly
+            if (-not $proc) {{
+                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $_.ProcessName.Equals($query, [System.StringComparison]::OrdinalIgnoreCase) }} | Select-Object -First 1
+            }}
+
             if ($proc) {{
                 $hwnd = $proc.MainWindowHandle
                 [Win32]::ShowWindow($hwnd, 9) | Out-Null

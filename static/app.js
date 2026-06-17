@@ -644,6 +644,8 @@ let audioAnalyser = null;
 let audioChunks = [];
 let silenceStartTime = null;
 let isSpeaking = false;
+let hasSpokenDuringSession = false;
+let recordingStartTime = Date.now();
 
 const btnVoice = document.getElementById('btn-voice');
 const voiceIcon = document.getElementById('voice-icon');
@@ -686,14 +688,32 @@ async function startRecordingStream() {
         };
         
         mediaRecorder.onstop = async () => {
-            if (audioChunks.length > 0 && isListening) {
+            if (audioChunks.length > 0 && isListening && hasSpokenDuringSession) {
                 const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                 audioChunks = [];
                 sendAudioForTranscription(audioBlob);
+            } else {
+                if (audioChunks.length > 0) {
+                    console.log("No speech detected during this period (volume below threshold). Skipping transcription.");
+                }
+                audioChunks = [];
+            }
+            hasSpokenDuringSession = false; // Reset for next session
+            
+            // Safe asynchronous restart if still listening
+            if (isListening && mediaRecorder && mediaRecorder.state === 'inactive') {
+                try {
+                    mediaRecorder.start();
+                    recordingStartTime = Date.now();
+                } catch (err) {
+                    console.error("Failed to restart mediaRecorder:", err);
+                }
             }
         };
 
         mediaRecorder.start();
+        recordingStartTime = Date.now();
+        hasSpokenDuringSession = false;
 
         // Silence detection
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -718,6 +738,7 @@ async function startRecordingStream() {
             }
             const averageVolume = sum / bufferLength;
             
+            // Speech detection threshold (0-255 scale)
             const speechThreshold = 12; 
             
             if (averageVolume > speechThreshold) {
@@ -725,6 +746,7 @@ async function startRecordingStream() {
                     console.log("Speech detected...");
                     isSpeaking = true;
                 }
+                hasSpokenDuringSession = true;
                 silenceStartTime = null;
             } else {
                 if (isSpeaking) {
@@ -737,9 +759,13 @@ async function startRecordingStream() {
                         
                         if (mediaRecorder && mediaRecorder.state === 'recording') {
                             mediaRecorder.stop();
-                            if (isListening) {
-                                mediaRecorder.start();
-                            }
+                        }
+                    }
+                } else {
+                    // Periodic reset if user has not spoken for 4 seconds, to keep the pre-speech buffer short
+                    if (Date.now() - recordingStartTime > 4000) {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop();
                         }
                     }
                 }

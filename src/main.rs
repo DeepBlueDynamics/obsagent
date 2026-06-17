@@ -2302,19 +2302,32 @@ async fn handle_voice_summary(
     accumulated_response: &str,
     websocket_sender: &mpsc::Sender<Message>,
 ) {
-    if let Ok(eleven_key) = std::env::var("ELEVENLABS_API_KEY") {
-        if let Some(start_idx) = accumulated_response.find("<voice_summary>") {
-            if let Some(end_idx) = accumulated_response.find("</voice_summary>") {
-                let voice_text = &accumulated_response[start_idx + "<voice_summary>".len()..end_idx];
-                println!("[ElevenLabs] Synthesizing speech for: {}", voice_text);
-                
-                if let Some(b64_audio) = synthesize_speech_elevenlabs(voice_text, &eleven_key).await {
-                    let _ = websocket_sender.send(Message::Text(serde_json::to_string(&json!({
-                        "type": "play_audio",
-                        "audio_base64": b64_audio
-                    })).unwrap().into())).await;
-                }
+    let eleven_key = match std::env::var("ELEVENLABS_API_KEY") {
+        Ok(key) => key,
+        Err(_) => {
+            println!("[ElevenLabs] Warning: ELEVENLABS_API_KEY is not set in the environment. Voice summary skipped.");
+            return;
+        }
+    };
+
+    match (accumulated_response.find("<voice_summary>"), accumulated_response.find("</voice_summary>")) {
+        (Some(start_idx), Some(end_idx)) => {
+            let voice_text = &accumulated_response[start_idx + "<voice_summary>".len()..end_idx];
+            println!("[ElevenLabs] Found voice summary text: {}", voice_text);
+            println!("[ElevenLabs] Synthesizing speech for: {}", voice_text);
+            
+            if let Some(b64_audio) = synthesize_speech_elevenlabs(voice_text, &eleven_key).await {
+                println!("[ElevenLabs] Synthesis successful! Sending base64 audio to client.");
+                let _ = websocket_sender.send(Message::Text(serde_json::to_string(&json!({
+                    "type": "play_audio",
+                    "audio_base64": b64_audio
+                })).unwrap().into())).await;
+            } else {
+                eprintln!("[ElevenLabs] Synthesis failed (API or connection error).");
             }
+        }
+        _ => {
+            println!("[ElevenLabs] Info: No <voice_summary> tags found in the response.");
         }
     }
 }

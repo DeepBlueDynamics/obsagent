@@ -121,6 +121,12 @@ function handleWebSocketMessage(msg) {
             renderChatHistory(msg.messages);
             break;
 
+        case 'model_switched':
+            if (modelSelect) {
+                modelSelect.value = msg.model;
+            }
+            break;
+
         case 'system_windows_list':
             populateWindowSelect(msg.windows);
             break;

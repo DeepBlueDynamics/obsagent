@@ -2171,6 +2171,13 @@ async fn run_agent_with_fallback(
         secondary_model
     };
 
+    if current_model != primary_model {
+        let _ = tx.send(Message::Text(serde_json::to_string(&json!({
+            "type": "model_switched",
+            "model": current_model
+        })).unwrap().into())).await;
+    }
+
     let mut attempts = 0;
     while attempts < 2 {
         attempts += 1;
@@ -2217,6 +2224,10 @@ async fn run_agent_with_fallback(
                                 }
                             }
                         }
+                        let _ = tx.send(Message::Text(serde_json::to_string(&json!({
+                            "type": "model_switched",
+                            "model": next_model
+                        })).unwrap().into())).await;
                         let _ = tx.send(Message::Text(serde_json::to_string(&json!({
                             "type": "system_notification",
                             "text": format!("Model {} execution failed ({}). Automatically switching/falling back...", current_model, e)

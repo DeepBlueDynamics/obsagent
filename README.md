@@ -1,5 +1,8 @@
 # 🚀 OBS Agentic Control Interface (obsagent)
 
+> [!NOTE]
+> **🤖 100% Coded by AI**: This entire repository and application was engineered 100% autonomously by **Antigravity**, an agentic AI coding assistant.
+
 A powerful, self-contained agentic interface built in Rust that allows you to control OBS Studio via natural language. The system features an advanced reasoning loop powered by Claude (`claude-3-5-sonnet`) and OpenAI (`gpt-4o`), automatically connected to OBS Studio via WebSocket v5.
 
 ---

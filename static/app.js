@@ -686,7 +686,7 @@ function populateWindowSelect(windows) {
     if (windows && windows.length > 0) {
         windows.forEach(win => {
             const opt = document.createElement('option');
-            opt.value = win.title;
+            opt.value = JSON.stringify({ pid: win.pid, title: win.title, process_name: win.process_name });
             opt.textContent = `[${win.process_name}] ${win.title}`;
             windowSelect.appendChild(opt);
         });
@@ -736,11 +736,22 @@ sizePresetBtns.forEach(btn => {
 
 if (btnHotwireWindow) {
     btnHotwireWindow.addEventListener('click', () => {
-        const targetWindow = windowSelect ? windowSelect.value : '';
-        if (!targetWindow) {
+        const targetValue = windowSelect ? windowSelect.value : '';
+        if (!targetValue) {
             addSystemMessage('Error: Please select a target window from the dropdown.');
             return;
         }
+
+        let targetTitle = targetValue;
+        let targetPid = null;
+        try {
+            const parsed = JSON.parse(targetValue);
+            targetTitle = parsed.title;
+            targetPid = parsed.pid;
+        } catch (e) {
+            // Fallback for simple title strings
+        }
+
         const w = parseInt(windowW.value) || 1280;
         const h = parseInt(windowH.value) || 720;
         const x = parseInt(windowX.value) || 0;
@@ -751,13 +762,14 @@ if (btnHotwireWindow) {
             return;
         }
         currentHotwireSourceName = sourceName;
-        addSystemMessage(`Restoring & resizing "${targetWindow}"...`);
+        addSystemMessage(`Restoring & resizing "${targetTitle}"...`);
         sendDirectCommand('resize_window', {
-            window_title: targetWindow,
+            window_title: targetTitle,
             width: w,
             height: h,
             x: x,
-            y: y
+            y: y,
+            pid: targetPid
         });
     });
 }

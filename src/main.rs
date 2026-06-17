@@ -546,8 +546,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                             let height = params.get("height").and_then(|v| v.as_u64()).unwrap_or(720) as u32;
                             let x = params.get("x").and_then(|v| v.as_i64()).map(|v| v as i32);
                             let y = params.get("y").and_then(|v| v.as_i64()).map(|v| v as i32);
+                            let pid = params.get("pid").and_then(|v| v.as_u64()).map(|v| v as u32);
                             
-                            match resize_and_locate_window(&title, width, height, x, y) {
+                            match resize_and_locate_window(&title, width, height, x, y, pid) {
                                 Ok(details) => {
                                     let _ = tx_for_cmd.send(Message::Text(serde_json::to_string(&json!({
                                         "type": "window_resized_details",
@@ -761,12 +762,14 @@ pub fn list_system_windows() -> Result<Vec<SystemWindowInfo>> {
     }
 }
 
+#[allow(unused_variables)]
 pub fn resize_and_locate_window(
     title_query: &str,
     width: u32,
     height: u32,
     x: Option<i32>,
     y: Option<i32>,
+    pid: Option<u32>,
 ) -> Result<WindowDetails> {
     let target_x = x.unwrap_or(0);
     let target_y = y.unwrap_or(0);
@@ -797,37 +800,45 @@ pub fn resize_and_locate_window(
             }}
 "@
             $query = $env:HOTWIRE_WINDOW_QUERY.Trim()
+            $pid_val = $env:HOTWIRE_WINDOW_PID
             $proc = $null
 
-            # 1. Exact match on MainWindowTitle
+            # Try finding by PID first (most precise)
+            if ($pid_val) {{
+                $proc = Get-Process -Id $pid_val -ErrorAction SilentlyContinue | Select-Object -First 1
+            }}
+
+            # Fallbacks by Title/ProcessName
             if (-not $proc) {{
-                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $_.MainWindowTitle.Equals($query, [System.StringComparison]::OrdinalIgnoreCase) }} | Select-Object -First 1
+                # 1. Exact match on MainWindowTitle
+                $proc = Get-Process -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowTitle -and $_.MainWindowTitle.Equals($query, [System.StringComparison]::OrdinalIgnoreCase) }} | Select-Object -First 1
             }}
 
             # 2. Substring match (window title contains query)
             if (-not $proc) {{
-                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $_.MainWindowTitle.ToLower().Contains($query.ToLower()) }} | Select-Object -First 1
+                $proc = Get-Process -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowTitle -and $_.MainWindowTitle.ToLower().Contains($query.ToLower()) }} | Select-Object -First 1
             }}
 
             # 3. Reverse substring match (query contains window title)
             if (-not $proc) {{
-                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $query.ToLower().Contains($_.MainWindowTitle.ToLower()) }} | Select-Object -First 1
+                $proc = Get-Process -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowTitle -and $query.ToLower().Contains($_.MainWindowTitle.ToLower()) }} | Select-Object -First 1
             }}
 
             # 4. If query contains a separator like " - ", split it and match process + title
-            if (-not $proc -and ($query -match " - ")) {{
+            # ONLY fall back to this if we don't have a PID (to prevent mismatching window owners with hosted shells)
+            if (-not $proc -and -not $pid_val -and ($query -match " - ")) {{
                 $parts = $query -split " - ", 2
                 $left = $parts[0].Trim()
                 $right = $parts[1].Trim()
                 
-                # Extract process name from path on left (handling backslashes or slashes)
+                # Extract process name from path on left
                 $leftName = $left
                 if ($left -match '[\\/]([^\\/]+)$') {{
                     $leftName = $Matches[1]
                 }}
                 $leftName = $leftName -replace '\.exe$', ''
                 
-                $proc = Get-Process | Where-Object {{ 
+                $proc = Get-Process -ErrorAction SilentlyContinue | Where-Object {{ 
                     $_.MainWindowTitle -and 
                     ($_.ProcessName.Equals($leftName, [System.StringComparison]::OrdinalIgnoreCase) -or $_.ProcessName.Equals($left, [System.StringComparison]::OrdinalIgnoreCase)) -and
                     $_.MainWindowTitle.ToLower().Contains($right.ToLower())
@@ -836,7 +847,7 @@ pub fn resize_and_locate_window(
 
             # 5. Match by process name exactly
             if (-not $proc) {{
-                $proc = Get-Process | Where-Object {{ $_.MainWindowTitle -and $_.ProcessName.Equals($query, [System.StringComparison]::OrdinalIgnoreCase) }} | Select-Object -First 1
+                $proc = Get-Process -ErrorAction SilentlyContinue | Where-Object {{ $_.MainWindowTitle -and $_.ProcessName.Equals($query, [System.StringComparison]::OrdinalIgnoreCase) }} | Select-Object -First 1
             }}
 
             if ($proc) {{
@@ -869,6 +880,7 @@ pub fn resize_and_locate_window(
         let output = std::process::Command::new("powershell")
             .args(&["-NoProfile", "-Command", &script])
             .env("HOTWIRE_WINDOW_QUERY", title_query)
+            .env("HOTWIRE_WINDOW_PID", pid.map(|p| p.to_string()).unwrap_or_default())
             .output()?;
 
         if output.status.success() {
@@ -1027,7 +1039,7 @@ async fn execute_tool(client: &Client, tool: ObsTool) -> Result<String> {
             Ok(text)
         }
         ObsTool::ResizeAndFocusWindow { window_title, width, height, x, y } => {
-            let details = resize_and_locate_window(&window_title, width, height, x, y)?;
+            let details = resize_and_locate_window(&window_title, width, height, x, y, None)?;
             let text = serde_json::to_string_pretty(&details)?;
             Ok(text)
         }

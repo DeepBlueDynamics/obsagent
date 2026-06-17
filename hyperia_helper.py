@@ -83,10 +83,16 @@ if __name__ == "__main__":
         sys.exit(1)
     
     cmd = sys.argv[1]
-    if cmd == "list":
-        asyncio.run(list_tools())
-    elif cmd == "call":
-        if len(sys.argv) < 4:
-            print("Usage: python3 hyperia_helper.py call [tool_name] [arguments_json]")
-            sys.exit(1)
-        asyncio.run(call_tool(sys.argv[2], sys.argv[3]))
+    try:
+        if cmd == "list":
+            asyncio.run(list_tools())
+        elif cmd == "call":
+            if len(sys.argv) < 4:
+                print("Usage: python3 hyperia_helper.py call [tool_name] [arguments_json]")
+                sys.exit(1)
+            asyncio.run(call_tool(sys.argv[2], sys.argv[3]))
+    except SystemExit:
+        raise
+    except BaseException as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

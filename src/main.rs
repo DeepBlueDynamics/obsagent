@@ -60,6 +60,8 @@ pub enum ClientMessage {
     Chat {
         text: String,
         model: Option<String>,
+        #[serde(default)]
+        is_voice: bool,
     },
     #[serde(rename = "command")]
     Command {
@@ -470,7 +472,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     while let Some(Ok(Message::Text(text))) = receiver.next().await {
         if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text) {
             match client_msg {
-                ClientMessage::Chat { text, model } => {
+                ClientMessage::Chat { text, model, is_voice } => {
                     let chosen_model = model.unwrap_or_else(|| {
                         if std::env::var("ANTHROPIC_API_KEY").is_ok() {
                             "claude".to_string()
@@ -494,6 +496,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                             tx_for_agent,
                             chat_history_clone,
                             hyperia_tools_clone,
+                            is_voice,
                         ).await;
                     });
                 }
@@ -1123,6 +1126,7 @@ async fn run_agent_loop(
     websocket_sender: mpsc::Sender<Message>,
     chat_history: Arc<Mutex<Vec<ChatMessage>>>,
     hyperia_tools: Arc<RwLock<Vec<ClaudeTool>>>,
+    is_voice: bool,
 ) -> Result<()> {
     let client = reqwest::Client::new();
     
@@ -1138,11 +1142,19 @@ async fn run_agent_loop(
     let mut local_history = Vec::<ClaudeMessage>::new();
     {
         let history_guard = chat_history.lock().await;
-        for msg in history_guard.iter() {
+        let len = history_guard.len();
+        for (idx, msg) in history_guard.iter().enumerate() {
             if msg.role == "user" {
+                let mut content_text = msg.text.clone();
+                if idx == len - 1 && is_voice {
+                    let lower = content_text.to_lowercase();
+                    if lower.contains("can you hear me") {
+                        content_text = format!("{} (Note: This message was transcribed from the user's voice input, not typed.)", content_text);
+                    }
+                }
                 local_history.push(ClaudeMessage {
                     role: "user".to_string(),
-                    content: ClaudeContent::Text(msg.text.clone()),
+                    content: ClaudeContent::Text(content_text),
                 });
             } else {
                 local_history.push(ClaudeMessage {
@@ -1777,6 +1789,7 @@ async fn run_agent_loop_openai(
     websocket_sender: mpsc::Sender<Message>,
     chat_history: Arc<Mutex<Vec<ChatMessage>>>,
     hyperia_tools: Arc<RwLock<Vec<ClaudeTool>>>,
+    is_voice: bool,
 ) -> Result<()> {
     let client = reqwest::Client::new();
     
@@ -1792,10 +1805,20 @@ async fn run_agent_loop_openai(
     let mut local_history = Vec::<OpenAiMessage>::new();
     {
         let history_guard = chat_history.lock().await;
-        for msg in history_guard.iter() {
+        let len = history_guard.len();
+        for (idx, msg) in history_guard.iter().enumerate() {
+            let mut content_text = msg.text.clone();
+            if msg.role == "user" {
+                if idx == len - 1 && is_voice {
+                    let lower = content_text.to_lowercase();
+                    if lower.contains("can you hear me") {
+                        content_text = format!("{} (Note: This message was transcribed from the user's voice input, not typed.)", content_text);
+                    }
+                }
+            }
             local_history.push(OpenAiMessage {
                 role: msg.role.clone(),
-                content: Some(msg.text.clone()),
+                content: Some(content_text),
                 tool_calls: None,
                 tool_call_id: None,
             });
@@ -2154,6 +2177,7 @@ async fn run_agent_with_fallback(
     tx: mpsc::Sender<Message>,
     chat_history: Arc<Mutex<Vec<ChatMessage>>>,
     hyperia_tools: Arc<RwLock<Vec<ClaudeTool>>>,
+    is_voice: bool,
 ) {
     let anthropic_key = std::env::var("ANTHROPIC_API_KEY").ok();
     let openai_key = std::env::var("OPENAI_API_KEY").ok();
@@ -2204,7 +2228,7 @@ async fn run_agent_with_fallback(
                         "type": "system_notification",
                         "text": "Running agent with Claude..."
                     })).unwrap().into())).await;
-                    run_agent_loop(text.clone(), obs_client.clone(), key.clone(), tx.clone(), chat_history.clone(), hyperia_tools.clone()).await
+                    run_agent_loop(text.clone(), obs_client.clone(), key.clone(), tx.clone(), chat_history.clone(), hyperia_tools.clone(), is_voice).await
                 } else {
                     Err(anyhow::anyhow!("Anthropic key is not available"))
                 }
@@ -2215,7 +2239,7 @@ async fn run_agent_with_fallback(
                         "type": "system_notification",
                         "text": "Running agent with OpenAI..."
                     })).unwrap().into())).await;
-                    run_agent_loop_openai(text.clone(), obs_client.clone(), key.clone(), tx.clone(), chat_history.clone(), hyperia_tools.clone()).await
+                    run_agent_loop_openai(text.clone(), obs_client.clone(), key.clone(), tx.clone(), chat_history.clone(), hyperia_tools.clone(), is_voice).await
                 } else {
                     Err(anyhow::anyhow!("OpenAI key is not available"))
                 }

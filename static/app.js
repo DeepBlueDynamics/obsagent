@@ -430,7 +430,7 @@ function scrollToBottom() {
 }
 
 // Command Transmission
-function sendChatMessage(text) {
+function sendChatMessage(text, isVoice = false) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         addSystemMessage('Cannot send message. Server connection is offline.');
         return;
@@ -440,7 +440,8 @@ function sendChatMessage(text) {
     ws.send(JSON.stringify({
         type: 'chat',
         text: text,
-        model: modelSelect ? modelSelect.value : 'claude'
+        model: modelSelect ? modelSelect.value : 'claude',
+        is_voice: isVoice
     }));
 }
 
@@ -800,6 +801,9 @@ async function sendAudioForTranscription(blob) {
 }
 
 function handleVoiceTranscript(transcript) {
+    const canHearMeRegex = /\bcan\s+you\s+hear\s+me\b/i;
+    const isCanHearMe = canHearMeRegex.test(transcript);
+    
     if (isObsRecording) {
         // Voice activation mode: only trigger if wake word is spoken
         const wakeWordRegex = /^(?:hey\s+)?obs(?:[- ]?y)?[:,]?\s*/i;
@@ -808,19 +812,26 @@ function handleVoiceTranscript(transcript) {
             const cleanedText = transcript.replace(wakeWordRegex, '').trim();
             if (cleanedText.length > 0) {
                 addSystemMessage(`Voice command detected: "${transcript}"`);
-                sendChatMessage(cleanedText);
+                const voiceFlag = canHearMeRegex.test(cleanedText);
+                sendChatMessage(cleanedText, voiceFlag);
             }
         } else {
             console.log(`Heard (ignored in recording mode): "${transcript}"`);
         }
     } else {
-        // Dictation mode: just type what we heard into the text input box
-        if (chatInput) {
-            const currentVal = chatInput.value.trim();
-            chatInput.value = (currentVal ? currentVal + " " : "") + transcript;
-            if (btnClearInput) btnClearInput.style.display = 'flex';
-            chatInput.focus();
-            console.log(`Heard (dictation): "${transcript}"`);
+        // Dictation mode: if they say "can you hear me", trigger it immediately as a voice command
+        if (isCanHearMe) {
+            addSystemMessage(`Voice query detected: "${transcript}"`);
+            sendChatMessage(transcript, true);
+        } else {
+            // Just type what we heard into the text input box
+            if (chatInput) {
+                const currentVal = chatInput.value.trim();
+                chatInput.value = (currentVal ? currentVal + " " : "") + transcript;
+                if (btnClearInput) btnClearInput.style.display = 'flex';
+                chatInput.focus();
+                console.log(`Heard (dictation): "${transcript}"`);
+            }
         }
     }
 }

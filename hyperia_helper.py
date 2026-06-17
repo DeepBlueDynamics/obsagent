@@ -31,8 +31,8 @@ HYPERIA_AGENT_TOKEN = os.environ.get("HYPERIA_AGENT_TOKEN", "").strip()
 AUTH_HEADERS = {"Authorization": f"Bearer {HYPERIA_AGENT_TOKEN}"} if HYPERIA_AGENT_TOKEN else None
 
 async def list_tools():
-    async with AsyncExitStack() as stack:
-        try:
+    try:
+        async with AsyncExitStack() as stack:
             read, write, _ = await stack.enter_async_context(
                 streamablehttp_client(MCP_URL, headers=AUTH_HEADERS)
             )
@@ -47,9 +47,9 @@ async def list_tools():
                         "input_schema": tool.inputSchema
                     })
                 print(json.dumps(tools_list))
-        except Exception as e:
-            print(json.dumps({"error": str(e)}), file=sys.stderr)
-            sys.exit(1)
+    except Exception as e:
+        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        sys.exit(1)
 
 async def call_tool(name, arguments_str):
     try:
@@ -58,8 +58,8 @@ async def call_tool(name, arguments_str):
         print(f"Error parsing arguments JSON: {e}", file=sys.stderr)
         sys.exit(1)
 
-    async with AsyncExitStack() as stack:
-        try:
+    try:
+        async with AsyncExitStack() as stack:
             read, write, _ = await stack.enter_async_context(
                 streamablehttp_client(MCP_URL, headers=AUTH_HEADERS)
             )
@@ -73,9 +73,9 @@ async def call_tool(name, arguments_str):
                     else:
                         content_list.append(str(block))
                 print("\n".join(content_list))
-        except Exception as e:
-            print(f"Error calling tool: {e}", file=sys.stderr)
-            sys.exit(1)
+    except Exception as e:
+        print(f"Error calling tool: {e}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

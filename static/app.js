@@ -5,6 +5,7 @@ let currentAgentMessageId = null;
 let currentTraceBody = null;
 let isObsRecording = false;
 let hasAutoSetDimensions = false;
+let hasPlayedErrorSoundThisTurn = false;
 
 // DOM Elements
 const statusIndicator = document.querySelector('.status-indicator');
@@ -100,7 +101,11 @@ function handleWebSocketMessage(msg) {
             break;
             
         case 'play_audio':
-            playAudioBase64(msg.audio_base64);
+            if (isObsRecording) {
+                playSoundDing();
+            } else {
+                playAudioBase64(msg.audio_base64);
+            }
             break;
             
         case 'agent_message_end':
@@ -109,10 +114,16 @@ function handleWebSocketMessage(msg) {
             
         case 'agent_trace_step':
             addAgentTraceStep(msg.message_id, msg.step_type, msg.content);
+            if (msg.step_type === 'error') {
+                triggerErrorSound();
+            }
             break;
             
         case 'system_notification':
             addSystemMessage(msg.text);
+            if (msg.text.toLowerCase().includes('error') || msg.text.toLowerCase().includes('failed')) {
+                triggerErrorSound();
+            }
             break;
             
         case 'obs_connected':
@@ -156,6 +167,81 @@ function playAudioBase64(base64Data) {
         });
     } catch (err) {
         console.error("Error creating/playing audio:", err);
+    }
+}
+
+function playSoundDing() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        
+        // Note 1: C5 (523.25 Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(523.25, now);
+        gain1.gain.setValueAtTime(0.08, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.08);
+        
+        // Note 2: G5 (783.99 Hz)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(783.99, now + 0.08);
+        gain2.gain.setValueAtTime(0.08, now + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.08);
+        osc2.stop(now + 0.4);
+        console.log("[Audio] Played Ding sound (Recording mode active)");
+    } catch (err) {
+        console.error("Failed to play Ding sound:", err);
+    }
+}
+
+function playSoundDonDong() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        
+        // Tone 1: Low warning note (140 Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(140, now);
+        gain1.gain.setValueAtTime(0.12, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.15);
+        
+        // Tone 2: Lower warning note (100 Hz)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(100, now + 0.15);
+        gain2.gain.setValueAtTime(0.12, now + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.15);
+        osc2.stop(now + 0.45);
+        console.log("[Audio] Played Don Dong warning sound (Recording mode active)");
+    } catch (err) {
+        console.error("Failed to play Don Dong sound:", err);
+    }
+}
+
+function triggerErrorSound() {
+    if (isObsRecording && !hasPlayedErrorSoundThisTurn) {
+        playSoundDonDong();
+        hasPlayedErrorSoundThisTurn = true;
     }
 }
 
@@ -334,6 +420,7 @@ function updateOBSDashboard(data) {
 // Chat UI functions
 function startAgentMessage(messageId) {
     currentAgentMessageId = messageId;
+    hasPlayedErrorSoundThisTurn = false;
     
     // Create new agent message block
     const msgDiv = document.createElement('div');

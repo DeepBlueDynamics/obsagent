@@ -164,30 +164,33 @@
                 </div>
             </div>
 
-            <!-- Suggestion Chips -->
-            <div class="suggestion-chips">
-                <button class="chip" data-prompt="What scenes do I have?">What scenes do I have?</button>
-                <button class="chip" data-prompt="Switch to 'Be Right Back' scene">Switch to 'Be Right Back'</button>
-                <button class="chip" data-prompt="Mute the Mic and start recording">Mute Mic & Start Recording</button>
-                <button class="chip" data-prompt="Check stream and recording status">Check Status</button>
-            </div>
+            <!-- Floating Controls Container -->
+            <div class="chat-controls-floating">
+                <!-- Suggestion Chips -->
+                <div class="suggestion-chips">
+                    <button class="chip" data-prompt="What scenes do I have?">What scenes do I have?</button>
+                    <button class="chip" data-prompt="Switch to 'Be Right Back' scene">Switch to 'Be Right Back'</button>
+                    <button class="chip" data-prompt="Mute the Mic and start recording">Mute Mic & Start Recording</button>
+                    <button class="chip" data-prompt="Check stream and recording status">Check Status</button>
+                </div>
 
-            <!-- Input Bar -->
-            <footer class="chat-input-area">
-                <form id="chat-form" class="chat-form">
-                    <button type="button" class="btn-voice" id="btn-voice" title="Toggle Real-Time Voice Transcription">
-                        <i data-lucide="mic-off" id="voice-icon"></i>
-                    </button>
-                    <input type="text" id="chat-input" placeholder="Type a command to control OBS..." autocomplete="off">
-                    <button type="button" id="btn-clear-input" title="Clear text" style="background: none; border: none; color: var(--text-muted); cursor: pointer; display: none; align-items: center; justify-content: center; padding: 4px; transition: var(--transition-smooth); margin-right: 4px;">
-                        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
-                    </button>
-                    <button type="submit" class="btn btn-primary" id="btn-send">
-                        <span>Send</span>
-                        <i data-lucide="send"></i>
-                    </button>
-                </form>
-            </footer>
+                <!-- Input Bar -->
+                <footer class="chat-input-area">
+                    <form id="chat-form" class="chat-form">
+                        <button type="button" class="btn-voice" id="btn-voice" title="Toggle Real-Time Voice Transcription">
+                            <i data-lucide="mic-off" id="voice-icon"></i>
+                        </button>
+                        <input type="text" id="chat-input" placeholder="Type a command to control OBS..." autocomplete="off">
+                        <button type="button" id="btn-clear-input" title="Clear text" style="background: none; border: none; color: var(--text-muted); cursor: pointer; display: none; align-items: center; justify-content: center; padding: 4px; transition: var(--transition-smooth); margin-right: 4px;">
+                            <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="btn-send">
+                            <span>Send</span>
+                            <i data-lucide="send"></i>
+                        </button>
+                    </form>
+                </footer>
+            </div>
         </main>
     </div>
 

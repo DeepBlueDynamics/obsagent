@@ -631,6 +631,9 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                         Err(anyhow!("Missing input_name or volume"))
                                     }
                                 }
+                                "toggle_record" => {
+                                    execute_tool(client, ObsTool::ControlRecord { action: "toggle".to_string() }).await
+                                }
                                 _ => Err(anyhow!("Unknown action: {}", action)),
                             };
 

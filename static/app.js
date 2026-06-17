@@ -24,6 +24,9 @@ const btnReconnectObs = document.getElementById('btn-reconnect-obs');
 const btnClearHistory = document.getElementById('btn-clear-history');
 const suggestionChips = document.querySelectorAll('.chip');
 const modelSelect = document.getElementById('model-select');
+const btnToggleRecord = document.getElementById('btn-toggle-record');
+const recordBtnText = document.getElementById('record-btn-text');
+const recordBtnIcon = document.getElementById('record-btn-icon');
 
 // Window Resizing & Hotwire Elements
 const windowSelect = document.getElementById('window-select');
@@ -173,6 +176,16 @@ function clearOBSDashboard() {
     currentSceneName.textContent = 'None';
     sceneGrid.innerHTML = '<div class="loading-text">OBS not connected.</div>';
     audioMixer.innerHTML = '<div class="loading-text">OBS not connected.</div>';
+    
+    if (btnToggleRecord && recordBtnText && recordBtnIcon) {
+        btnToggleRecord.style.background = 'rgba(239, 68, 68, 0.15)';
+        btnToggleRecord.style.color = '#f87171';
+        btnToggleRecord.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        btnToggleRecord.style.boxShadow = 'none';
+        recordBtnText.textContent = 'Start OBS Recording';
+        recordBtnIcon.setAttribute('data-lucide', 'video');
+        lucide.createIcons();
+    }
 }
 
 // Update the Left Panel Dashboard
@@ -193,6 +206,26 @@ function updateOBSDashboard(data) {
     
     virtualcamVal.textContent = isVirtualCam ? 'ACTIVE' : 'OFFLINE';
     virtualcamVal.parentElement.parentElement.className = `status-card ${isVirtualCam ? 'active-virtualcam' : ''}`;
+    
+    // Update top record button styling
+    if (btnToggleRecord && recordBtnText && recordBtnIcon) {
+        if (isRecording) {
+            btnToggleRecord.style.background = 'var(--accent-red)';
+            btnToggleRecord.style.color = '#ffffff';
+            btnToggleRecord.style.borderColor = 'transparent';
+            btnToggleRecord.style.boxShadow = '0 0 12px var(--accent-red)';
+            recordBtnText.textContent = 'Stop OBS Recording';
+            recordBtnIcon.setAttribute('data-lucide', 'video-off');
+        } else {
+            btnToggleRecord.style.background = 'rgba(239, 68, 68, 0.15)';
+            btnToggleRecord.style.color = '#f87171';
+            btnToggleRecord.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            btnToggleRecord.style.boxShadow = 'none';
+            recordBtnText.textContent = 'Start OBS Recording';
+            recordBtnIcon.setAttribute('data-lucide', 'video');
+        }
+        lucide.createIcons();
+    }
     
     // Video Canvas Size
     if (resolutionVal) {
@@ -487,6 +520,13 @@ btnReconnectObs.addEventListener('click', () => {
     sendDirectCommand('reconnect_obs');
     addSystemMessage('Requesting OBS connection reset...');
 });
+
+// Toggle Recording Button
+if (btnToggleRecord) {
+    btnToggleRecord.addEventListener('click', () => {
+        sendDirectCommand('toggle_record');
+    });
+}
 
 // Clear History Button
 if (btnClearHistory) {

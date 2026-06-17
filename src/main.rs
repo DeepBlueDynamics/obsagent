@@ -2328,6 +2328,8 @@ async fn handle_voice_summary(
     accumulated_response: &str,
     websocket_sender: &mpsc::Sender<Message>,
 ) {
+    println!("[ElevenLabs] Debug: Full accumulated response is:\n\"\"\"\n{}\n\"\"\"", accumulated_response);
+
     let eleven_key = match std::env::var("ELEVENLABS_API_KEY") {
         Ok(key) => key,
         Err(_) => {

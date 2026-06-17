@@ -96,6 +96,10 @@ function handleWebSocketMessage(msg) {
             appendAgentMessageChunk(msg.message_id, msg.text);
             break;
             
+        case 'play_audio':
+            playAudioBase64(msg.audio_base64);
+            break;
+            
         case 'agent_message_end':
             endAgentMessage(msg.message_id);
             break;
@@ -137,6 +141,18 @@ function handleWebSocketMessage(msg) {
             
         default:
             console.log('Unknown message type:', msg);
+    }
+}
+
+function playAudioBase64(base64Data) {
+    try {
+        const audioUrl = `data:audio/mp3;base64,${base64Data}`;
+        const audio = new Audio(audioUrl);
+        audio.play().catch(err => {
+            console.error("Failed to play audio:", err);
+        });
+    } catch (err) {
+        console.error("Error creating/playing audio:", err);
     }
 }
 
@@ -339,8 +355,18 @@ function appendAgentMessageChunk(messageId, text) {
     const textP = msgDiv.querySelector('.message-text');
     if (textP.innerHTML.includes('<em>Thinking...</em>')) {
         textP.innerHTML = '';
+        textP.rawText = '';
     }
-    textP.textContent += text;
+    if (textP.rawText === undefined) {
+        textP.rawText = textP.textContent || '';
+    }
+    textP.rawText += text;
+    
+    let display = textP.rawText;
+    if (display.includes('<voice_summary>')) {
+        display = display.split('<voice_summary>')[0];
+    }
+    textP.textContent = display.trim();
     scrollToBottom();
 }
 
@@ -502,7 +528,11 @@ function renderChatHistory(messages) {
             
             const textP = document.createElement('p');
             textP.className = 'message-text';
-            textP.textContent = msg.text;
+            let display = msg.text;
+            if (display.includes('<voice_summary>')) {
+                display = display.split('<voice_summary>')[0];
+            }
+            textP.textContent = display.trim();
             contentDiv.appendChild(textP);
             msgDiv.appendChild(contentDiv);
             

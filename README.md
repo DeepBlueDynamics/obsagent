@@ -48,6 +48,7 @@ To start the server, configure your credentials and connection endpoints as envi
 # Set your API keys (one or both are supported)
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
 export OPENAI_API_KEY="your-openai-api-key"
+export ELEVENLABS_API_KEY="your-elevenlabs-api-key"
 
 # Set the connection host for OBS Studio
 # When running inside a container, set to "host.docker.internal" to connect to the host

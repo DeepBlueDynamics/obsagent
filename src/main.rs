@@ -18,6 +18,7 @@ use serde_json::json;
 use obws::Client;
 use futures_util::{SinkExt, StreamExt};
 use anyhow::{anyhow, Result};
+use base64::Engine;
 
 
 static MESSAGE_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -1195,10 +1196,13 @@ async fn run_agent_loop(
                   - Once found, call `resize_and_focus_window` with the target title and dimensions (e.g., matching the canvas resolution like 2560x1440) to focus and resize it.\n\
                   - This returns an `obs_identifier` (e.g. 'Title:ClassName:ProcessName.exe').\n\
                   - Then, call `set_obs_window_capture` to create or bind that window to a Window Capture source in the desired scene.\n\
-             4. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
-             5. If a tool fails, report it and try another way or explain the failure.\n\
-             6. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
-             7. Keep your final response concise and directly answer the user.",
+             4. **Voice Summary (ElevenLabs)**:\n\
+                - At the end of your response, you MUST include a short, conversational summary (1-2 sentences) of the actions you took or the answers you provided, wrapped in `<voice_summary>...</voice_summary>` tags. This will be read out loud to the user via Text-to-Speech.\n\
+                - E.g., `<voice_summary>I have switched OBS to the Be Right Back scene and muted the microphone.</voice_summary>`.\n\
+             5. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
+             6. If a tool fails, report it and try another way or explain the failure.\n\
+             7. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
+             8. Keep your final response concise and directly answer the user.",
             current_state_str
         );
 
@@ -1349,6 +1353,9 @@ async fn run_agent_loop(
             content: ClaudeContent::Blocks(tool_results),
         });
     }
+
+    // Trigger ElevenLabs Voice Summary
+    handle_voice_summary(&accumulated_response, &websocket_sender).await;
 
     // Push final accumulated response to global history
     if !accumulated_response.is_empty() {
@@ -1837,10 +1844,13 @@ async fn run_agent_loop_openai(
                   - Once found, call `resize_and_focus_window` with the target title and dimensions (e.g., matching the canvas resolution like 2560x1440) to focus and resize it.\n\
                   - This returns an `obs_identifier` (e.g. 'Title:ClassName:ProcessName.exe').\n\
                   - Then, call `set_obs_window_capture` to create or bind that window to a Window Capture source in the desired scene.\n\
-             4. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
-             5. If a tool fails, report it and try another way or explain the failure.\n\
-             6. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
-             7. Keep your final response concise and directly answer the user.",
+             4. **Voice Summary (ElevenLabs)**:\n\
+                - At the end of your response, you MUST include a short, conversational summary (1-2 sentences) of the actions you took or the answers you provided, wrapped in `<voice_summary>...</voice_summary>` tags. This will be read out loud to the user via Text-to-Speech.\n\
+                - E.g., `<voice_summary>I have switched OBS to the Be Right Back scene and muted the microphone.</voice_summary>`.\n\
+             5. You can enable or disable voice listening mode dynamically by calling the `set_listening_state` tool (e.g. if the user says 'listen to me' or 'stop listening').\n\
+             6. If a tool fails, report it and try another way or explain the failure.\n\
+             7. Once you have achieved the user's goal, or if you need to ask a question, output your final response to the user.\n\
+             8. Keep your final response concise and directly answer the user.",
             current_state_str
         );
 
@@ -1999,6 +2009,9 @@ async fn run_agent_loop_openai(
             });
         }
     }
+
+    // Trigger ElevenLabs Voice Summary
+    handle_voice_summary(&accumulated_response, &websocket_sender).await;
 
     // Push final accumulated response to global history
     if !accumulated_response.is_empty() {
@@ -2242,6 +2255,65 @@ async fn run_agent_with_fallback(
                     "text": format!("Agent execution failed: {}", e)
                 })).unwrap().into())).await;
                 break;
+            }
+        }
+    }
+}
+
+async fn synthesize_speech_elevenlabs(text: &str, api_key: &str) -> Option<String> {
+    let client = reqwest::Client::new();
+    let url = "https://api.elevenlabs.io/v1/text-to-speech/r1KmysJdVYZjJCm4mL3b";
+    
+    let payload = json!({
+        "text": text,
+        "model_id": "eleven_monolingual_v1",
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75
+        }
+    });
+
+    match client.post(url)
+        .header("xi-api-key", api_key)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()
+        .await
+    {
+        Ok(res) => {
+            if res.status().is_success() {
+                if let Ok(bytes) = res.bytes().await {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                    return Some(b64);
+                }
+            } else {
+                let err_text = res.text().await.unwrap_or_default();
+                eprintln!("ElevenLabs API error: {}", err_text);
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to contact ElevenLabs: {}", e);
+        }
+    }
+    None
+}
+
+async fn handle_voice_summary(
+    accumulated_response: &str,
+    websocket_sender: &mpsc::Sender<Message>,
+) {
+    if let Ok(eleven_key) = std::env::var("ELEVENLABS_API_KEY") {
+        if let Some(start_idx) = accumulated_response.find("<voice_summary>") {
+            if let Some(end_idx) = accumulated_response.find("</voice_summary>") {
+                let voice_text = &accumulated_response[start_idx + "<voice_summary>".len()..end_idx];
+                println!("[ElevenLabs] Synthesizing speech for: {}", voice_text);
+                
+                if let Some(b64_audio) = synthesize_speech_elevenlabs(voice_text, &eleven_key).await {
+                    let _ = websocket_sender.send(Message::Text(serde_json::to_string(&json!({
+                        "type": "play_audio",
+                        "audio_base64": b64_audio
+                    })).unwrap().into())).await;
+                }
             }
         }
     }

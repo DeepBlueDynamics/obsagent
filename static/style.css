@@ -370,6 +370,7 @@ img, video, canvas {
     background-color: var(--bg-main);
     height: 100%;
     position: relative;
+    min-height: 0;
 }
 
 .chat-header {
@@ -467,6 +468,7 @@ img, video, canvas {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-height: 0;
 }
 
 .message {

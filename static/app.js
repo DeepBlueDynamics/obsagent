@@ -19,6 +19,7 @@ const audioMixer = document.getElementById('audio-mixer');
 const chatMessages = document.getElementById('chat-messages');
 const chatForm = document.getElementById('chat-form');
 const chatInput = document.getElementById('chat-input');
+const btnClearInput = document.getElementById('btn-clear-input');
 const btnReconnectObs = document.getElementById('btn-reconnect-obs');
 const btnClearHistory = document.getElementById('btn-clear-history');
 const suggestionChips = document.querySelectorAll('.chip');
@@ -432,7 +433,21 @@ chatForm.addEventListener('submit', (e) => {
     
     sendChatMessage(text);
     chatInput.value = '';
+    if (btnClearInput) btnClearInput.style.display = 'none';
 });
+
+// Clear Input Button logic
+if (chatInput && btnClearInput) {
+    chatInput.addEventListener('input', () => {
+        btnClearInput.style.display = chatInput.value ? 'flex' : 'none';
+    });
+    
+    btnClearInput.addEventListener('click', () => {
+        chatInput.value = '';
+        chatInput.focus();
+        btnClearInput.style.display = 'none';
+    });
+}
 
 // Reconnect OBS Button
 btnReconnectObs.addEventListener('click', () => {
@@ -496,6 +511,7 @@ suggestionChips.forEach(chip => {
     chip.addEventListener('click', () => {
         const text = chip.getAttribute('data-prompt');
         chatInput.value = '';
+        if (btnClearInput) btnClearInput.style.display = 'none';
         sendChatMessage(text);
     });
 });
@@ -766,6 +782,7 @@ function handleVoiceTranscript(transcript) {
         if (chatInput) {
             const currentVal = chatInput.value.trim();
             chatInput.value = (currentVal ? currentVal + " " : "") + transcript;
+            if (btnClearInput) btnClearInput.style.display = 'flex';
             chatInput.focus();
             console.log(`Heard (dictation): "${transcript}"`);
         }

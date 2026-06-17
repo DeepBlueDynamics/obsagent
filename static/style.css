@@ -711,3 +711,7 @@ img, video, canvas {
     100% { transform: scale(1); opacity: 1; }
 }
 
+#btn-clear-input:hover {
+    color: var(--text-primary) !important;
+}
+
